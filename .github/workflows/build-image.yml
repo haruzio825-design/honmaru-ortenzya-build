@@ -1,0 +1,52 @@
+name: Build Ortenzya image (manual, ~19 GB)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type BUILD_19GB to build and publish the ~19GB model image"
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: ortenzya-image-publish
+  cancel-in-progress: false
+jobs:
+  build-and-push:
+    if: ${{ inputs.confirmation == 'BUILD_19GB' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Read source
+        uses: actions/checkout@v4
+      - name: Require at least 55 GB disk available
+        shell: bash
+        run: |
+          df -h /
+          available_kb="$(df -Pk / | awk 'NR==2 {print $4}')"
+          if [ "$available_kb" -lt 55000000 ]; then
+            echo "STOP: not enough free disk space. Need >= 55 GB, got ${available_kb} KB."
+            exit 1
+          fi
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish isolated trial image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          pull: true
+          no-cache: true
+          platforms: linux/amd64
+          tags: ghcr.io/haruzio825-design/honmaru-ortenzya:trial-q4km-20261016
+          provenance: false
+          build-args: |
+            HF_REVISION=d7c96e816759b50ba7d0afe3a9e36deb7b096f16
+            EXPECTED_SHA256=aefb0b5a93362b8880e2639c15ea807220351c7abfa8e0f6903ca25f31844981
