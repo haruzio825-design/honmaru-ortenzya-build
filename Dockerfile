@@ -1,6 +1,6 @@
 # Ortenzya trial container: code-only image. GGUF is downloaded on first start.
 # Known CUDA-12 llama.cpp build. Validate Salad node driver compatibility at first launch.
-FROM ghcr.io/ggml-org/llama.cpp:server-cuda12-b10454
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda
 
 LABEL org.opencontainers.image.title="Honmaru Ortenzya trial"
 LABEL org.opencontainers.image.description="Independent llama.cpp server for Ortenzya 31B Q4_K_M comparison"
