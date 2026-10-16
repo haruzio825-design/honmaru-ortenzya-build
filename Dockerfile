@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # EXPERIMENTAL / NOT YET BUILT OR TESTED.
 # Download the verified, revision-pinned GGUF DURING image build, not at GPU startup.
-FROM ghcr.io/ggml-org/llama.cpp:server-cuda-b10884
+FROM ghcr.io/ggml-org/llama.cpp:server-cuda
 
 ARG HF_REVISION
 ARG EXPECTED_SHA256
