@@ -1,28 +1,32 @@
-# honmaru-ortenzya-build
+# honmaru-ortenzya-build — experimental only
 
-比較試験専用の **未検証** サーバー設計。既存の `honmaru-gemma4-baked` (QAT) を変更しません。
+**現行QATサーバー `honmaru-gemma4-baked` とは完全に別の比較試験用リポジトリです。**
+会話・日記・手記・APIキーをここへ置かないでください。
 
-## 現在の進捗
-- GitHub repository: created.
-- `Dockerfile`: experimental llama.cpp CUDA 12 **small code-only image**. **Not built or tested**.
-- GGUF is NOT bundled into this image. `-hf` downloads the Q4_K_M model at first startup (about 19 GB).
-- GHCR image: **not built or pushed yet**. SaladCloud: **not duplicated or started**.
-- **DO NOT point SaladCloud to this Dockerfile or assume it is deployable yet.**
+## 現在の状況（未デプロイ）
+- [x] 独立した公開リポジトリ
+- [x] モデル組込型の試作 `Dockerfile`（**未ビルド・未テスト**）
+- [x] 手動・読み取り専用のモデル事前検証 `.github/workflows/preflight.yml`
+- [ ] HFの実GGUFファイル名・revision・SHA256を検証
+- [ ] イメージビルド用容量・GPUランタイム互換性を検証
+- [ ] イメージを新しいGHCRタグへビルド・プッシュ
+- [ ] SaladCloudに別コンテナグループとして追加（**既存QATは編集しない**）
+- [ ] 4090上で16Kコンテキストのメモリ・品質テスト
 
-## Planned model
-- Hugging Face: `llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF`
-- Quantization: `Q4_K_M`; check exact GGUF filename/sharding, license, loader compatibility and VRAM before deployment.
-- API model alias to keep client-compatible: `gemma-4-31b-it` (only in the *separate* test endpoint).
-- Proposed context: 16384; verify memory use on RTX 4090 24GB first.
+## モデル
+- `llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF`
+- Q4_K_M 約18.7GB。Dockerfileに現在書いてあるモデル名は**仮置き**です。ファイル名とチェックサムの一致を確認する前にビルドしないでください。
+- CUDA向け llama.cpp `ghcr.io/ggml-org/llama.cpp:server-cuda` を想定。イメージの対応GPUドライバとGemma4対応状況は未確認。
 
-## Critical practical limitation
-Because model files aren't included, a SaladCloud node without a persistent model cache downloads the entire model on each cold start. This would incur GPU start-up time/cost and can exceed probe thresholds. **For actual trials prefer a tested model-baked image or persistent-download design.** Do not deploy the prototype without deciding this.
+## 次に実施する安全な操作
+GitHub Actions → `Ortenzya preflight (no GPU, no download)` → `Run workflow` で、モデル一覧とハッシュ、ランナー空き容量を出力します。**モデル本体はダウンロードしません。** ActionsはGitHub側の実行時間や使用量に計上されうるので、実行前にアカウントの利用条件を確認してください。
 
-## Next steps
-1. Confirm exact model GGUF file(s) and runtime compatibility.
-2. Prepare a cost-aware, independently named image and build pipeline; keep existing image untouched.
-3. Manually run an inexpensive dry build / registry check, then stop.
-4. Duplicate Salad container group into a **separately named** deployment, update image and model alias if needed; never edit the QAT group.
-5. Compare isolated trial state for dialogue quality, 4-character boundaries, and private-information boundaries. Keep original STATE/diaries/queues intact.
+## ビルド上の注意
+- 標準のGitHub-hosted runnerは容量が小さく、大型モデルとコンテナレイヤーをそのままビルドすると失敗しやすい。
+- ファイルを含むイメージが19GB以上になりうるため、GHCRのアップロード時間と容量、ビルド時間、GHCRの公開設定とSaladからのpull可否も確認する。
+- **起動時に毎回19GBをダウンロードさせない**ための「ビルド時にモデル埋込」方式を計画中。
+- ダウンロードとモデル起動は未実施。GPU費用は発生していない。
+- イメージビルド・SaladCloudデプロイはいずれも別途確認後に進める。
 
-No secrets or private honmaru records are stored in this repository.
+## 比較試験条件
+既存モデルを基準に、4振りの固有呼称／個体差、別行動と知識共有の境界、私的出来事の秘匿、帰宅場面、反復、文章自然さを評価します。試験用チェックポイントは必ずコピーを使用し、本編記録に混ぜません。
