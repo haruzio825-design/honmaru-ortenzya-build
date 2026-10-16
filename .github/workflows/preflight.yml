@@ -1,0 +1,26 @@
+name: Ortenzya preflight (no GPU, no download)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check HF revision, Q4_K_M files and official size
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,urllib.request
+          base="https://huggingface.co/api/models/llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF"
+          req=urllib.request.Request(base,headers={"User-Agent":"honmaru-ortenzya-preflight/1"})
+          with urllib.request.urlopen(req,timeout=35) as f: obj=json.load(f)
+          print("Model SHA:",obj.get("sha"))
+          paths=[(p.get("rfilename"),p.get("size"),p.get("lfs",{}).get("sha256")) for p in obj.get("siblings",[]) if "Q4_K_M" in p.get("rfilename","")]
+          if not paths: raise SystemExit("STOP: Q4_K_M GGUF not found")
+          for name,size,sha in paths: print("GGUF",name,"size",size,"sha256",sha)
+          if len(paths)!=1 or not paths[0][0].endswith(".gguf"):raise SystemExit("STOP: ambiguous model files")
+          if not paths[0][2]:print("WARNING: SHA256 metadata unavailable; cannot build safely")
+          PY
+      - name: Disk space (informational)
+        run: df -h /
