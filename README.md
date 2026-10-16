@@ -7,8 +7,9 @@
 - [x] 2回目の読み取り専用HF preflightは成功。リビジョン・容量・SHA256を確認
 - [x] **10層に分けた**Dockerfileと、起動時に結合・整合性検査するシェルスクリプト
 - [x] **手動実行のみ**のGHCRビルド/アップロードWorkflowを追加
-- [ ] 約19GBモデルのダウンロードとDockerイメージ作成（**未実行**）
-- [ ] DockerイメージのGHCRアップロード（**未実行**）
+- [x] 約19GBモデルのダウンロードとDockerイメージ作成（GitHub Actions #2 成功）
+- [x] DockerイメージのGHCRアップロード（レジストリのmanifestプッシュ成功）
+- [ ] GHCRパッケージの公開範囲・SaladCloudからのpull認証を確認
 - [ ] SaladCloudに**新規**コンテナグループとしてデプロイ（**未実行**）
 - [ ] RTX 4090上で16,384トークンの適合性・品質を検証（**未実行**）
 
@@ -31,15 +32,19 @@ So the Dockerfile:
 
 Consequences: startup scratch space must have room for 18.69 GB **in addition to** the model layers. Image pull, concatenation, sha256, and llama.cpp warmup take time; first boot requires probe/timeout validation on Salad. RTX 4090 VRAM 24GB and 16K context may not fit with `-ngl 999`; fall back to lower context or fewer offloaded layers in the **trial** deployment only. These details are **not yet validated on a GPU**.
 
-## The manual, potentially long/expensive build (DO NOT RUN YET)
+## Published image (built, NOT yet tested on GPU)
 Workflow: https://github.com/haruzio825-design/honmaru-ortenzya-build/actions/workflows/build-image.yml
 
-This workflow is `workflow_dispatch` only, and requires the confirmation text `BUILD_19GB`. It checks for >=55 GB available root disk space, uses the pinned HF revision and hash, and attempts to push to:
+This workflow is `workflow_dispatch` only, and requires the confirmation text `BUILD_19GB`. It checks for >=55 GB available root disk space, uses the pinned HF revision and hash, and published to:
 `ghcr.io/haruzio825-design/honmaru-ortenzya:trial-q4km-20261016`
 
-**The workflow has not been run.** Before executing, check GitHub Actions billing/quota and intended package visibility. If the GHCR package is initially private, it will not be pullable by the unauthenticated Salad node; consider marking **only this trial package** public after evaluating model redistribution and privacy. Code-only repository does **not** include model or user data.
+- Successful workflow run: https://github.com/haruzio825-design/honmaru-ortenzya-build/actions/runs/38849850709
+- Registry manifest digest (from Actions push log): `sha256:d40bc77d73468cf421fba58da1f9fb930670b23c2059c9aec32cffb6394bca32`
+- Wall time: 10m 21s. No Salad deployment / GPU startup performed.
 
-The Docker configuration is a technical **prototype**. A green preflight does not prove the model image can build or the server can load it.
+**Do not trigger the build again:** the trial image exists in GHCR. Check the package's actual visibility before deploying. First-publish GHCR packages default to Private even with a public source repository. Public packages allow unauthenticated pulling, but publication is an irreversible visibility decision; private-pull auth is an alternative. The code-only repository does **not** contain model weights or user data.
+
+The Docker configuration is a technical **prototype**. A green build proves it has been packaged and pushed, **not** that the server loads successfully on RTX 4090.
 
 ## SaladCloud protection
 - Do **NOT** edit or replace existing `honmaru-gemma4-baked`.
