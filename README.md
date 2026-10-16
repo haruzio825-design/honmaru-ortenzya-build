@@ -1,32 +1,53 @@
-# honmaru-ortenzya-build — experimental only
+# honmaru-ortenzya-build
 
-**現行QATサーバー `honmaru-gemma4-baked` とは完全に別の比較試験用リポジトリです。**
-会話・日記・手記・APIキーをここへ置かないでください。
+**EXPERIMENTAL. NO AUTOMATIC BUILD.** QAT版の `honmaru-gemma4-baked` とは別の、Ortenzya比較用コンテナのソースです。本丸の会話・日記・手記・APIキー等をこの公開リポジトリに追加しないでください。
 
-## 現在の状況（未デプロイ）
-- [x] 独立した公開リポジトリ
-- [x] モデル組込型の試作 `Dockerfile`（**未ビルド・未テスト**）
-- [x] 手動・読み取り専用のモデル事前検証 `.github/workflows/preflight.yml`
-- [ ] HFの実GGUFファイル名・revision・SHA256を検証
-- [ ] イメージビルド用容量・GPUランタイム互換性を検証
-- [ ] イメージを新しいGHCRタグへビルド・プッシュ
-- [ ] SaladCloudに別コンテナグループとして追加（**既存QATは編集しない**）
-- [ ] 4090上で16Kコンテキストのメモリ・品質テスト
+## Status — 2026-10-16
+- [x] 独立した公開GitHubリポジトリ
+- [x] 2回目の読み取り専用HF preflightは成功。リビジョン・容量・SHA256を確認
+- [x] **10層に分けた**Dockerfileと、起動時に結合・整合性検査するシェルスクリプト
+- [x] **手動実行のみ**のGHCRビルド/アップロードWorkflowを追加
+- [ ] 約19GBモデルのダウンロードとDockerイメージ作成（**未実行**）
+- [ ] DockerイメージのGHCRアップロード（**未実行**）
+- [ ] SaladCloudに**新規**コンテナグループとしてデプロイ（**未実行**）
+- [ ] RTX 4090上で16,384トークンの適合性・品質を検証（**未実行**）
 
-## モデル
-- `llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF`
-- Q4_K_M 約18.7GB。Dockerfileに現在書いてあるモデル名は**仮置き**です。ファイル名とチェックサムの一致を確認する前にビルドしないでください。
-- CUDA向け llama.cpp `ghcr.io/ggml-org/llama.cpp:server-cuda` を想定。イメージの対応GPUドライバとGemma4対応状況は未確認。
+## Verified GGUF
+- Repo: `llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF`
+- File: `gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-Q4_K_M.gguf`
+- Revision: `d7c96e816759b50ba7d0afe3a9e36deb7b096f16`
+- Size: **18,687,062,592 bytes** (18.69 GB = 17.40 GiB)
+- SHA256: `aefb0b5a93362b8880e2639c15ea807220351c7abfa8e0f6903ca25f31844981`
+- Preflight run: https://github.com/haruzio825-design/honmaru-ortenzya-build/actions/runs/38847164117
 
-## 次に実施する安全な操作
-GitHub Actions → `Ortenzya preflight (no GPU, no download)` → `Run workflow` で、モデル一覧とハッシュ、ランナー空き容量を出力します。**モデル本体はダウンロードしません。** ActionsはGitHub側の実行時間や使用量に計上されうるので、実行前にアカウントの利用条件を確認してください。
+## GHCR limit & packaging
+GitHub Container Registry accepts **at most 10GB per image layer** and **10 minutes upload per layer**. See https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry .
 
-## ビルド上の注意
-- 標準のGitHub-hosted runnerは容量が小さく、大型モデルとコンテナレイヤーをそのままビルドすると失敗しやすい。
-- ファイルを含むイメージが19GB以上になりうるため、GHCRのアップロード時間と容量、ビルド時間、GHCRの公開設定とSaladからのpull可否も確認する。
-- **起動時に毎回19GBをダウンロードさせない**ための「ビルド時にモデル埋込」方式を計画中。
-- ダウンロードとモデル起動は未実施。GPU費用は発生していない。
-- イメージビルド・SaladCloudデプロイはいずれも別途確認後に進める。
+So the Dockerfile:
+1. Streams the pinned HF model to **10 separate chunks of up to 2,000,000,000 bytes**, verifying the original model SHA256.
+2. Copies chunks individually to the published image, creating ten smaller layers.
+3. During each Salad instance startup, **reassembles the 18.69 GB model** to `/tmp/ortenzya-Q4_K_M.gguf` on local scratch disk, verifies SHA256, and only then starts the GPU server.
+4. Avoids repeatedly redownloading the model from HF when the Salad image is already present.
 
-## 比較試験条件
-既存モデルを基準に、4振りの固有呼称／個体差、別行動と知識共有の境界、私的出来事の秘匿、帰宅場面、反復、文章自然さを評価します。試験用チェックポイントは必ずコピーを使用し、本編記録に混ぜません。
+Consequences: startup scratch space must have room for 18.69 GB **in addition to** the model layers. Image pull, concatenation, sha256, and llama.cpp warmup take time; first boot requires probe/timeout validation on Salad. RTX 4090 VRAM 24GB and 16K context may not fit with `-ngl 999`; fall back to lower context or fewer offloaded layers in the **trial** deployment only. These details are **not yet validated on a GPU**.
+
+## The manual, potentially long/expensive build (DO NOT RUN YET)
+Workflow: https://github.com/haruzio825-design/honmaru-ortenzya-build/actions/workflows/build-image.yml
+
+This workflow is `workflow_dispatch` only, and requires the confirmation text `BUILD_19GB`. It checks for >=55 GB available root disk space, uses the pinned HF revision and hash, and attempts to push to:
+`ghcr.io/haruzio825-design/honmaru-ortenzya:trial-q4km-20261016`
+
+**The workflow has not been run.** Before executing, check GitHub Actions billing/quota and intended package visibility. If the GHCR package is initially private, it will not be pullable by the unauthenticated Salad node; consider marking **only this trial package** public after evaluating model redistribution and privacy. Code-only repository does **not** include model or user data.
+
+The Docker configuration is a technical **prototype**. A green preflight does not prove the model image can build or the server can load it.
+
+## SaladCloud protection
+- Do **NOT** edit or replace existing `honmaru-gemma4-baked`.
+- Do **NOT** use its QAT container group, old model path, or existing STATE/W​EB_DATA/diaries.
+- When the trial image is built, deploy separately; give it a separate Access Domain, API key, and copied *test* application state. Do not reuse the source runtime checkpoint directly.
+- Existing API model alias `gemma-4-31b-it` is retained inside the **trial** endpoint for compatibility; this does not mean it is the QAT weights.
+- In Salad duplicate config, remove existing hardcoded **Command** from the original group. The new image has its own ENTRYPOINT with model reconstruction, and keeping the old command risks incorrect startup.
+- Observe startup health, GPU memory, and cloud spend before initiating long text generation.
+
+## Planned evaluation
+Compare on four-sword identity and personal knowledge boundaries, off-screen autonomy, previously completed action retention, private intimate events staying private, scene changes and similarity loops. **No real canon log is modified during trial.**
