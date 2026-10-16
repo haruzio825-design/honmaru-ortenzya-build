@@ -12,7 +12,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json,urllib.request
-          base="https://huggingface.co/api/models/llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF"
+          base="https://huggingface.co/api/models/llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF?blobs=true"
           req=urllib.request.Request(base,headers={"User-Agent":"honmaru-ortenzya-preflight/1"})
           with urllib.request.urlopen(req,timeout=35) as f: obj=json.load(f)
           print("Model SHA:",obj.get("sha"))
@@ -20,7 +20,8 @@ jobs:
           if not paths: raise SystemExit("STOP: Q4_K_M GGUF not found")
           for name,size,sha in paths: print("GGUF",name,"size",size,"sha256",sha)
           if len(paths)!=1 or not paths[0][0].endswith(".gguf"):raise SystemExit("STOP: ambiguous model files")
-          if not paths[0][2]:print("WARNING: SHA256 metadata unavailable; cannot build safely")
+          if not paths[0][2]: raise SystemExit("STOP: SHA256 metadata unavailable; cannot build safely")
+          if not paths[0][1] or paths[0][1] < 10000000000: raise SystemExit("STOP: unexpected or missing model file size")
           PY
       - name: Disk space (informational)
         run: df -h /
