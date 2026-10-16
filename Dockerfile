@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG HF_REVISION=d7c96e816759b50ba7d0afe3a9e36deb7b096f16
 ARG EXPECTED_SHA256=aefb0b5a93362b8880e2639c15ea807220351c7abfa8e0f6903ca25f31844981
 ARG MODEL_FILENAME=gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-Q4_K_M.gguf
-RUN mkdir -p /model-parts &&     curl --fail --location --silent --show-error --retry 4 --retry-delay 8       "https://huggingface.co/llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF/resolve/${HF_REVISION}/${MODEL_FILENAME}?download=true"       | split --bytes=2000000000 --numeric-suffixes=0 --suffix-length=2 - /model-parts/chunk- &&     test "$(find /model-parts -type f -name 'chunk-*' | wc -l)" -eq 10 &&     test "$(cat /model-parts/chunk-* | sha256sum | cut -d\x27 \x27 -f1)" = "${EXPECTED_SHA256}"
+RUN mkdir -p /model-parts &&     curl --fail --location --silent --show-error --retry 4 --retry-delay 8       "https://huggingface.co/llmfan46/gemma-4-Ortenzya-The-Creative-Wordsmith-31B-it-uncensored-heretic-GGUF/resolve/${HF_REVISION}/${MODEL_FILENAME}?download=true"       | split --bytes=2000000000 --numeric-suffixes=0 --suffix-length=2 - /model-parts/chunk- &&     test "$(find /model-parts -type f -name 'chunk-*' | wc -l)" -eq 10 &&     cat /model-parts/chunk-* | sha256sum | grep -Fqx "${EXPECTED_SHA256}  -"
 
 # Each COPY below creates a separate ~2 GB layer, below GHCR's 10 GB/layer limit.
 FROM ghcr.io/ggml-org/llama.cpp:server-cuda
