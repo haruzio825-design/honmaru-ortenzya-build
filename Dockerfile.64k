@@ -1,0 +1,12 @@
+# 64K comparison image: inherit the original, verified Ortenzya Q4_K_M weights.
+# Do not rebuild or redownload the ~18.7 GB GGUF; reuse its GHCR layers.
+# The published 16K image and its startup script remain unchanged.
+FROM ghcr.io/haruzio825-design/honmaru-ortenzya:trial-q4km-20261016
+
+LABEL org.opencontainers.image.source="https://github.com/haruzio825-design/honmaru-ortenzya-build"
+LABEL org.opencontainers.image.title="Honmaru Ortenzya 64K trial"
+LABEL org.opencontainers.image.description="64K context, quantized KV; reuses original Ortenzya model layers"
+
+COPY start-ortenzya-64k.sh /app/start-ortenzya-64k.sh
+EXPOSE 8080
+ENTRYPOINT ["/bin/sh", "/app/start-ortenzya-64k.sh"]
